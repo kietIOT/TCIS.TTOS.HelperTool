@@ -36,6 +36,11 @@ builder.Services.Configure<SpxTrackingOptions>(builder.Configuration.GetSection(
 builder.Services.AddScoped<ISpxTrackingService, SpxTrackingService>();
 builder.Services.AddHostedService<SpxTrackingBackgroundService>();
 
+// Docker Monitor
+builder.Services.Configure<DockerMonitorOptions>(builder.Configuration.GetSection("DockerMonitor"));
+builder.Services.AddScoped<IDockerMonitorService, DockerMonitorService>();
+builder.Services.AddHostedService<DockerMonitorBackgroundService>();
+
 var app = builder.Build();
 
 // Auto-migrate database
