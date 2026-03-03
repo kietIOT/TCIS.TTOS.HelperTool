@@ -1,7 +1,5 @@
-﻿using MediatR;
-using Microsoft.AspNetCore.Mvc;
-using TCIS.TTOS.HelperTool.API.Infrastructure.Services.Interface;
-using TCIS.TTOS.HelperTool.API.Infrastructure.Services.Models;
+﻿using Microsoft.AspNetCore.Mvc;
+using TCIS.TTOS.HelperTool.API.Features.Deploy;
 
 namespace TCIS.TTOS.HelperTool.API.Controllers
 {

@@ -1,11 +1,7 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
-using TCIS.TTOS.HelperTool.API.Infrastructure.Services.Implement;
-using TCIS.TTOS.HelperTool.API.Infrastructure.Services.Interface;
-using TCIS.TTOS.HelperTool.API.Infrastructure.Services.Models;
+using TCIS.TTOS.HelperTool.API.Extensions;
 using TCIS.TTOS.ToolHelper.DAL;
-using TCIS.TTOS.ToolHelper.DAL.UnitOfWork;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,30 +12,14 @@ builder.Services.AddSwaggerGen(c =>
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "Deploy Gateway API", Version = "v1" });
 });
 builder.Services.AddHttpContextAccessor();
-builder.Services.Configure<DeploySettings>(builder.Configuration.GetSection("DeploySettings"));
-builder.Services.Configure<SpxOptions>(builder.Configuration.GetSection("Spx"));
 
-builder.Services.AddSingleton<IDeployService, DeployService>();
-
-builder.Services.AddHttpClient();
-builder.Services.AddSingleton<ISpxExpressService, SpxExpressService>();
-
-// PostgreSQL + EF Core
-builder.Services.AddDbContextFactory<ToolHelperDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("ToolHelperDb")));
-
-// UnitOfWork
-builder.Services.AddScoped<IToolHelperUnitOfWork, ToolHelperUnitOfWork>();
-
-// SPX Tracking
-builder.Services.Configure<SpxTrackingOptions>(builder.Configuration.GetSection("SpxTracking"));
-builder.Services.AddScoped<ISpxTrackingService, SpxTrackingService>();
-builder.Services.AddHostedService<SpxTrackingBackgroundService>();
-
-// Docker Monitor
-builder.Services.Configure<DockerMonitorOptions>(builder.Configuration.GetSection("DockerMonitor"));
-builder.Services.AddScoped<IDockerMonitorService, DockerMonitorService>();
-builder.Services.AddHostedService<DockerMonitorBackgroundService>();
+// Feature registrations
+builder.Services.AddPersistence(builder.Configuration);
+builder.Services.AddDeployFeature(builder.Configuration);
+builder.Services.AddSpxExpressFeature(builder.Configuration);
+builder.Services.AddSpxTrackingFeature(builder.Configuration);
+builder.Services.AddDockerMonitorFeature(builder.Configuration);
+builder.Services.AddYooseeCameraFeature(builder.Configuration);
 
 var app = builder.Build();
 
@@ -53,14 +33,10 @@ using (var scope = app.Services.CreateScope())
     Console.ResetColor();
 }
 
-
-
 app.UseSwagger();
 app.UseSwaggerUI();
 
-
 app.UseAuthorization();
 app.MapControllers();
-
 
 app.Run();

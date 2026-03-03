@@ -1,10 +1,10 @@
+using Microsoft.Extensions.Options;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
 using System.Text;
-using Microsoft.Extensions.Options;
-using TCIS.TTOS.HelperTool.API.Infrastructure.Services.Interface;
-using TCIS.TTOS.HelperTool.API.Infrastructure.Services.Models;
+using TCIS.TTOS.HelperTool.API.Common.Models;
+using TCIS.TTOS.HelperTool.API.Features.DockerMonitor;
 
 namespace TCIS.TTOS.HelperTool.API.Infrastructure.Services.Implement
 {

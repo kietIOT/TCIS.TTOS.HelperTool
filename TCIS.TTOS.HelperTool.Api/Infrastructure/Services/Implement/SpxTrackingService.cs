@@ -2,8 +2,10 @@
 using Newtonsoft.Json;
 using System.Security.Cryptography;
 using System.Text;
+using TCIS.TTOS.HelperTool.API.Common.Models;
+using TCIS.TTOS.HelperTool.API.Features.SpxExpress.Models;
+using TCIS.TTOS.HelperTool.API.Features.SpxTracking;
 using TCIS.TTOS.HelperTool.API.Infrastructure.Services.Interface;
-using TCIS.TTOS.HelperTool.API.Infrastructure.Services.Models;
 using TCIS.TTOS.ToolHelper.Dal.Entities;
 using TCIS.TTOS.ToolHelper.Dal.Enums;
 using TCIS.TTOS.ToolHelper.DAL.UnitOfWork;
@@ -14,7 +16,7 @@ namespace TCIS.TTOS.HelperTool.API.Infrastructure.Services.Implement
         IServiceScopeFactory scopeFactory,
         ISpxExpressService spxExpressService,
         IOptions<SpxTrackingOptions> trackingOptions,
-        ILogger<SpxTrackingService> logger) : ISpxTrackingService
+        ILogger<SpxTrackingService> logger) : Features.SpxTracking.ISpxTrackingService
     {
         private readonly SpxTrackingOptions _options = trackingOptions.Value;
 

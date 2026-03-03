@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Options;
-using TCIS.TTOS.HelperTool.API.Infrastructure.Services.Interface;
-using TCIS.TTOS.HelperTool.API.Infrastructure.Services.Models;
+using TCIS.TTOS.HelperTool.API.Features.SpxTracking;
 
 namespace TCIS.TTOS.HelperTool.API.Infrastructure.Services.Implement
 {

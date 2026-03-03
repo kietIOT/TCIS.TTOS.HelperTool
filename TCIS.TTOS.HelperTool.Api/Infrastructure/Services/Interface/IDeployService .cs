@@ -1,4 +1,4 @@
-﻿using TCIS.TTOS.HelperTool.API.Infrastructure.Services.Models;
+﻿using TCIS.TTOS.HelperTool.API.Features.Deploy;
 
 namespace TCIS.TTOS.HelperTool.API.Infrastructure.Services.Interface
 {

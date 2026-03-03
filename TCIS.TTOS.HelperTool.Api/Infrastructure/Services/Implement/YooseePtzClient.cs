@@ -1,7 +1,6 @@
 using System.Net.Sockets;
 using System.Text;
-using TCIS.TTOS.HelperTool.API.Infrastructure.Services.Interface;
-using TCIS.TTOS.HelperTool.API.Infrastructure.Services.Models;
+using TCIS.TTOS.HelperTool.API.Features.YooseeCamera;
 
 namespace TCIS.TTOS.HelperTool.API.Infrastructure.Services.Implement
 {

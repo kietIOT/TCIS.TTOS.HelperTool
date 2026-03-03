@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.Options;
 using System.Diagnostics;
-using TCIS.TTOS.HelperTool.API.Infrastructure.Services.Interface;
-using TCIS.TTOS.HelperTool.API.Infrastructure.Services.Models;
+using TCIS.TTOS.HelperTool.API.Features.Deploy;
 
 namespace TCIS.TTOS.HelperTool.API.Infrastructure.Services.Implement
 {
