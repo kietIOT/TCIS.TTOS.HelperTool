@@ -30,7 +30,6 @@ namespace TCIS.TTOS.HelperTool.API.Infrastructure.Services.Implement
             stream.ReadTimeout = (int)opt.ReadTimeout.TotalMilliseconds;
             stream.WriteTimeout = (int)opt.ReadTimeout.TotalMilliseconds;
 
-            // Step 1: RTSP SETUP – establish the session
             var setup =
                 $"SETUP rtsp://{ip}/onvif1/track1 RTSP/1.0\r\n" +
                 "CSeq: 1\r\n" +
@@ -38,10 +37,8 @@ namespace TCIS.TTOS.HelperTool.API.Infrastructure.Services.Implement
                 "Transport: RTP/AVP/TCP;unicast;interleaved=0-1\r\n\r\n";
 
             await WriteAsciiAsync(stream, setup, ct);
-            var setupResponse = await ReadResponseAsync(stream, ct);
-            log.LogDebug("SETUP response from {Ip}: {Response}", ip, setupResponse);
+            _ = await ReadResponseAsync(stream, ct);
 
-            // Step 2: SET_PARAMETER with ptzCmd
             var setParam =
                 $"SET_PARAMETER rtsp://{ip}/onvif1 RTSP/1.0\r\n" +
                 $"Content-type: ptzCmd: {normalised}\r\n" +
@@ -49,7 +46,6 @@ namespace TCIS.TTOS.HelperTool.API.Infrastructure.Services.Implement
                 "Session:\r\n\r\n";
 
             await WriteAsciiAsync(stream, setParam, ct);
-
             log.LogInformation("PTZ command sent: ip={Ip} action={Action}", ip, normalised);
         }
 
@@ -72,7 +68,6 @@ namespace TCIS.TTOS.HelperTool.API.Infrastructure.Services.Implement
             stream.ReadTimeout = (int)opt.ReadTimeout.TotalMilliseconds;
             stream.WriteTimeout = (int)opt.ReadTimeout.TotalMilliseconds;
 
-            // SETUP
             var setup =
                 $"SETUP rtsp://{ip}/onvif1/track1 RTSP/1.0\r\n" +
                 "CSeq: 1\r\n" +
@@ -82,7 +77,6 @@ namespace TCIS.TTOS.HelperTool.API.Infrastructure.Services.Implement
             await WriteAsciiAsync(stream, setup, ct);
             _ = await ReadResponseAsync(stream, ct);
 
-            // MOVE
             var moveCmd =
                 $"SET_PARAMETER rtsp://{ip}/onvif1 RTSP/1.0\r\n" +
                 $"Content-type: ptzCmd: {normalised}\r\n" +
@@ -92,10 +86,8 @@ namespace TCIS.TTOS.HelperTool.API.Infrastructure.Services.Implement
             await WriteAsciiAsync(stream, moveCmd, ct);
             log.LogInformation("PTZ move sent: ip={Ip} action={Action}", ip, normalised);
 
-            // Wait before sending STOP
             await Task.Delay(opt.PtzStopDelayMs, ct);
 
-            // STOP
             var stopCmd =
                 $"SET_PARAMETER rtsp://{ip}/onvif1 RTSP/1.0\r\n" +
                 "Content-type: ptzCmd: STOP\r\n" +
