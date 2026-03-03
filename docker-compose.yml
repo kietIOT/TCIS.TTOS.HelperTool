@@ -1,0 +1,22 @@
+services:
+  tool_helper_service:
+    image: tool_helper_service:v1.10
+    container_name: tool_helper_service
+    restart: unless-stopped
+    ports:
+      - "9000:8080"
+    environment:
+      - TZ=Asia/Ho_Chi_Minh
+    volumes:
+      - ./tool_helper.json:/app/appsettings.json
+      - /root/tadmin:/root/tadmin
+      - /root/tpg_uat:/root/tpg_uat
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /root/.docker:/root/.docker:ro   
+    networks:
+      - domain
+
+networks:
+  domain:
+    driver: bridge
+    name: domain-network

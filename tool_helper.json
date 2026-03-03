@@ -1,0 +1,68 @@
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*",
+  "DeploySettings": {
+    "Jobs": [
+      {
+        "Name": "tcis_ttos_tadmin_adminservice_uat",
+        "ComposeFile": "/root/tadmin/tadmin_service.yml",
+        "WorkingDirectory": "/root/tadmin"
+        
+      },
+      {
+        "Name": "tcis_ttos_tadmin_api_uat",
+        "ComposeFile": "/root/tadmin/tadmin_api.yml",
+        "WorkingDirectory": "/root/tadmin"
+      },
+      {
+        "Name": "tcis.spg.ipn.services_uat",
+        "ComposeFile": "/root/tpg_uat/public_Service_10.255.204.11/ipn-service.yml",
+        "WorkingDirectory": "/root/tpg_uat/public_Service_10.255.204.11"
+      },
+      {
+        "Name": "tcis.spg.integration.vietcombank.services_uat",
+        "ComposeFile": "/root/tpg_uat/public_Service_10.255.204.11/integration-vietcombank-service.yml",
+        "WorkingDirectory": "/root/tpg_uat/public_Service_10.255.204.11"
+      },
+      {
+        "Name": "tcis.spg.integration.napas.payment.services_uat",
+        "ComposeFile": "/root/tpg_uat/public_Service_10.255.204.11/integration-napaspay-service.yml",
+        "WorkingDirectory": "/root/tpg_uat/public_Service_10.255.204.11"
+      },
+      {
+        "Name": "tcis.spg.integration.mbbank.services_uat",
+        "ComposeFile": "/root/tpg_uat/public_Service_10.255.204.11/integration-mbbank-service.yml",
+        "WorkingDirectory": "/root/tpg_uat/public_Service_10.255.204.11"
+      },
+      {
+        "Name": "tcis.spg.integration.hdbank.services_uat",
+        "ComposeFile": "/root/tpg_uat/public_Service_10.255.204.11/integration-hdbank-service.yml",
+        "WorkingDirectory": "/root/tpg_uat/public_Service_10.255.204.11"
+      },
+      
+      {
+        "Name": "tcis.spg.transaction.services_uat",
+        "ComposeFile": "/root/tpg_uat/private_Service_10.255.204.12/transaction-service.yml",
+        "WorkingDirectory": "/root/tpg_uat/private_Service_10.255.204.12"
+      },
+      
+      {
+        "Name": "tcis.spg.config.services_uat",
+        "ComposeFile": "/root/tpg_uat/private_Service_10.255.204.12/config-service.yml",
+        "WorkingDirectory": "/root/tpg_uat/private_Service_10.255.204.12"
+      },
+      
+      {
+        "Name": "tcis.spg.aggregate.services_uat",
+        "ComposeFile": "/root/tpg_uat/private_Service_10.255.204.12/aggregate-service.yml",
+        "WorkingDirectory": "/root/tpg_uat/private_Service_10.255.204.12"
+      }
+      
+    ]
+  }
+}
