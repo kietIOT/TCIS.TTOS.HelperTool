@@ -11,6 +11,9 @@ namespace TCIS.TTOS.ToolHelper.DAL.UnitOfWork
         IToolHelperRepository<TrackingEvent> TrackingEventGroupRepository { get; }
         IToolHelperRepository<NotificationOutbox> NotificationOutboxRepository { get; }
         IToolHelperRepository<ShipmentPollLock> ShipmentPollLockRepository { get; }
+        IToolHelperRepository<MonitoredHost> MonitoredHostRepository { get; }
+        IToolHelperRepository<MonitoredService> MonitoredServiceRepository { get; }
+        IToolHelperRepository<DeploymentHistory> DeploymentHistoryRepository { get; }
     }
 
     public class ToolHelperUnitOfWork(IDbContextFactory<ToolHelperDbContext> dbContextFactory) :
@@ -22,6 +25,9 @@ namespace TCIS.TTOS.ToolHelper.DAL.UnitOfWork
 
         private IToolHelperRepository<NotificationOutbox>? _notificationOutboxRepository;
         private IToolHelperRepository<ShipmentPollLock>? _shipmentPollLockRepository;
+        private IToolHelperRepository<MonitoredHost>? _monitoredHostRepository;
+        private IToolHelperRepository<MonitoredService>? _monitoredServiceRepository;
+        private IToolHelperRepository<DeploymentHistory>? _deploymentHistoryRepository;
 
         public IToolHelperRepository<TrackingShipment> TrackingShipmentRepository => _trackingShipmentRepository ??= new ToolHelperRepository<TrackingShipment>(_dbContext);
         public IToolHelperRepository<NotificationOutbox> NotificationOutboxRepository => _notificationOutboxRepository ??= new ToolHelperRepository<NotificationOutbox>(_dbContext);
@@ -30,6 +36,13 @@ namespace TCIS.TTOS.ToolHelper.DAL.UnitOfWork
         public IToolHelperRepository<TrackingSubscription> TrackingSubscriptionRepository => _trackingSubscriptionRepository ??= new ToolHelperRepository<TrackingSubscription>(_dbContext);
         public IToolHelperRepository<TrackingEvent> TrackingEventGroupRepository
                 => _trackingEventGroupRepository ??= new ToolHelperRepository<TrackingEvent>(_dbContext);
+
+        public IToolHelperRepository<MonitoredHost> MonitoredHostRepository
+                => _monitoredHostRepository ??= new ToolHelperRepository<MonitoredHost>(_dbContext);
+        public IToolHelperRepository<MonitoredService> MonitoredServiceRepository
+                => _monitoredServiceRepository ??= new ToolHelperRepository<MonitoredService>(_dbContext);
+        public IToolHelperRepository<DeploymentHistory> DeploymentHistoryRepository
+                => _deploymentHistoryRepository ??= new ToolHelperRepository<DeploymentHistory>(_dbContext);
 
     }
 }

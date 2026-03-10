@@ -12,6 +12,10 @@ namespace TCIS.TTOS.ToolHelper.DAL
         public DbSet<NotificationOutbox> NotificationOutbox { get; } = null!;
         public DbSet<ShipmentPollLock> ShipmentPollLocks { get; } = null!;
 
+        public DbSet<MonitoredHost> MonitoredHosts { get; } = null!;
+        public DbSet<MonitoredService> MonitoredServices { get; } = null!;
+        public DbSet<DeploymentHistory> DeploymentHistories { get; } = null!;
+
         protected override void OnModelCreating(ModelBuilder b)
         {
             base.OnModelCreating(b);
@@ -107,6 +111,63 @@ namespace TCIS.TTOS.ToolHelper.DAL
 
                 e.HasIndex(x => x.LockedUntil)
                  .HasDatabaseName("ix_poll_locks_until");
+            });
+
+            // ---- monitored_hosts
+            b.Entity<MonitoredHost>(e =>
+            {
+                e.ToTable("monitored_hosts");
+                e.HasKey(x => x.Id);
+
+                e.HasIndex(x => x.IpAddress)
+                 .IsUnique()
+                 .HasDatabaseName("ix_monitored_hosts_ip");
+
+                e.HasIndex(x => new { x.IsActive, x.Status })
+                 .HasDatabaseName("ix_monitored_hosts_active_status");
+
+                e.HasMany(x => x.Services)
+                 .WithOne(x => x.Host)
+                 .HasForeignKey(x => x.HostId)
+                 .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // ---- monitored_services
+            b.Entity<MonitoredService>(e =>
+            {
+                e.ToTable("monitored_services");
+                e.HasKey(x => x.Id);
+
+                e.HasIndex(x => new { x.HostId, x.Name })
+                  .IsUnique()
+                  .HasDatabaseName("ix_monitored_services_host_name");
+
+                e.HasIndex(x => new { x.HostId, x.IsActive })
+                  .HasDatabaseName("ix_monitored_services_host_active");
+
+                e.HasIndex(x => x.Type)
+                  .HasDatabaseName("ix_monitored_services_type");
+
+                e.HasIndex(x => x.Name)
+                  .HasDatabaseName("ix_monitored_services_name");
+
+                e.HasMany(x => x.DeploymentHistories)
+                  .WithOne(x => x.Service)
+                  .HasForeignKey(x => x.ServiceId)
+                  .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // ---- deployment_histories
+            b.Entity<DeploymentHistory>(e =>
+            {
+                e.ToTable("deployment_histories");
+                e.HasKey(x => x.Id);
+
+                e.HasIndex(x => new { x.ServiceId, x.StartedAt })
+                  .HasDatabaseName("ix_deployment_histories_service_started");
+
+                e.HasIndex(x => x.Status)
+                  .HasDatabaseName("ix_deployment_histories_status");
             });
         }
     }

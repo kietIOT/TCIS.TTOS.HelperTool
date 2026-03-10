@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
-using TCIS.TTOS.HelperTool.API.Extensions;
+using TCIS.TTOS.HostManagement.API.Extensions;
 using TCIS.TTOS.ToolHelper.DAL;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -19,17 +20,13 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Deploy Gateway API", Version = "v1" });
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Host Management API", Version = "v1" });
 });
 builder.Services.AddHttpContextAccessor();
 
 // Feature registrations
 builder.Services.AddPersistence(builder.Configuration);
-builder.Services.AddDeployFeature(builder.Configuration);
-builder.Services.AddSpxExpressFeature(builder.Configuration);
-builder.Services.AddSpxTrackingFeature(builder.Configuration);
-builder.Services.AddDockerMonitorFeature(builder.Configuration);
-builder.Services.AddYooseeCameraFeature(builder.Configuration);
+builder.Services.AddHostManagementFeature();
 
 var app = builder.Build();
 
