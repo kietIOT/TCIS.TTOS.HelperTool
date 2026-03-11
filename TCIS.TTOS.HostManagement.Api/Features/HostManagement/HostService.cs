@@ -30,6 +30,7 @@ public class HostService(
             Name = request.Name,
             Description = request.Description,
             IpAddress = request.IpAddress,
+            AgentPort = request.AgentPort,
             SshPort = request.SshPort ?? 22,
             SshUsername = request.SshUsername,
             SshPrivateKeyPath = request.SshPrivateKeyPath,
@@ -137,6 +138,7 @@ public class HostService(
             host.IpAddress = request.IpAddress;
         }
         if (request.SshPort.HasValue) host.SshPort = request.SshPort.Value;
+        if (request.AgentPort.HasValue) host.AgentPort = request.AgentPort.Value;
         if (request.Os != null) host.Os = request.Os;
         if (request.SshUsername != null) host.SshUsername = request.SshUsername;
         if (request.SshPrivateKeyPath != null) host.SshPrivateKeyPath = request.SshPrivateKeyPath;
@@ -229,6 +231,7 @@ public class HostService(
         Name = host.Name,
         Description = host.Description,
         IpAddress = host.IpAddress,
+        AgentPort = host.AgentPort,
         SshPort = host.SshPort,
         SshUsername = host.SshUsername,
         Os = host.Os,
@@ -250,6 +253,7 @@ public class HostService(
             Name = host.Name,
             Description = host.Description,
             IpAddress = host.IpAddress,
+            AgentPort = host.AgentPort,
             SshPort = host.SshPort,
             SshUsername = host.SshUsername,
             Os = host.Os,

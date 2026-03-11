@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using TCIS.TTOS.HelperTool.API.Features.Deploy;
 
 namespace TCIS.TTOS.HelperTool.API.Controllers;
@@ -7,28 +8,25 @@ namespace TCIS.TTOS.HelperTool.API.Controllers;
 [Route("api")]
 public class DeployController(IDeployService deployService) : ControllerBase
 {
+    /// <summary>
+    /// Deploy a service by name. Reads config from DB, executes docker compose locally.
+    /// Called by HostManagement.API.
+    /// </summary>
     [HttpPost("deploy")]
-    public async Task<ActionResult<DeployResponse>> Deploy([FromBody] DeployRequest request)
+    public async Task<IActionResult> Deploy([FromBody] DeployByNameRequest request, CancellationToken ct)
     {
-        if (string.IsNullOrEmpty(request.JobName))
+        if (string.IsNullOrWhiteSpace(request.ServiceName))
         {
-            return BadRequest(new DeployResponse
+            return BadRequest(new DeployResultDto
             {
+                ServiceName = "",
                 Success = false,
-                Message = "JobName is required"
+                Error = "ServiceName is required"
             });
         }
 
-        var result = await deployService.DeployAsync(request.JobName, request.Environment);
-
+        var result = await deployService.DeployByServiceNameAsync(request, ct);
         return result.Success ? Ok(result) : StatusCode(500, result);
-    }
-
-    [HttpGet("jobs")]
-    public ActionResult<List<string>> GetJobs()
-    {
-        var jobs = deployService.GetAvailableJobs();
-        return Ok(jobs);
     }
 
     [HttpGet("health")]

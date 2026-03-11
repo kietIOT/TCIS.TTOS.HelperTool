@@ -16,6 +16,8 @@ namespace TCIS.TTOS.ToolHelper.Dal.Entities
         [MaxLength(64)]
         public string IpAddress { get; set; } = default!;
 
+        public int AgentPort { get; set; } = 5155;
+
         public int? SshPort { get; set; } = 22;
 
         [MaxLength(128)]

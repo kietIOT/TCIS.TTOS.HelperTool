@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using TCIS.TTOS.HelperTool.API.Features.Deploy;
 using TCIS.TTOS.HelperTool.API.Features.DockerMonitor;
 using TCIS.TTOS.HelperTool.API.Features.SpxExpress;
@@ -13,8 +14,7 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddDeployFeature(this IServiceCollection services, IConfiguration configuration)
     {
-        services.Configure<DeploySettings>(configuration.GetSection("DeploySettings"));
-        services.AddSingleton<IDeployService, DeployService>();
+        services.AddScoped<IDeployService, DeployService>();
         return services;
     }
 

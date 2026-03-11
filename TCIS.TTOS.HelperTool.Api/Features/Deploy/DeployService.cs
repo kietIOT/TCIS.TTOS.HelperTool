@@ -1,128 +1,126 @@
 using System.Diagnostics;
-using Microsoft.Extensions.Options;
+using System.Text;
+using TCIS.TTOS.ToolHelper.Dal.Entities;
+using TCIS.TTOS.ToolHelper.DAL.UnitOfWork;
 
 namespace TCIS.TTOS.HelperTool.API.Features.Deploy;
 
-public class DeployService(IOptions<DeploySettings> settings) : IDeployService
+public class DeployService(
+    IServiceScopeFactory scopeFactory,
+    ILogger<DeployService> logger) : IDeployService
 {
-    private readonly DeploySettings _settings = settings.Value;
-
-    public async Task<DeployResponse> DeployAsync(string jobName, string? environment)
+    public async Task<DeployResultDto> DeployByServiceNameAsync(DeployByNameRequest request, CancellationToken ct = default)
     {
-        var job = _settings.Jobs.FirstOrDefault(j => j.Name.Equals(jobName, StringComparison.OrdinalIgnoreCase));
+        using var scope = scopeFactory.CreateScope();
+        var uow = scope.ServiceProvider.GetRequiredService<IToolHelperUnitOfWork>();
 
-        if (job == null)
+        // 1. Look up service config from DB
+        var service = await uow.MonitoredServiceRepository.FindOneAsync(
+            x => x.Name == request.ServiceName && x.IsActive);
+
+        if (service == null)
         {
-            return new DeployResponse
+            return new DeployResultDto
             {
+                ServiceName = request.ServiceName,
                 Success = false,
-                Message = $"Job '{jobName}' not found in configuration"
+                Error = $"Service '{request.ServiceName}' not found or inactive in DB"
             };
         }
 
-        if (!File.Exists(job.ComposeFile))
+        // 2. Build deploy command from DB config
+        var deployCommand = BuildDeployCommand(service);
+        if (string.IsNullOrWhiteSpace(deployCommand))
         {
-            return new DeployResponse
+            return new DeployResultDto
             {
+                ServiceName = service.Name,
                 Success = false,
-                Message = $"Compose file not found: {job.ComposeFile}"
+                Error = "No deploy command configured. Set ComposeFilePath or DeployCommand in DB."
             };
         }
+
+        logger.LogInformation("[DEPLOY] Executing deploy for service '{Service}': {Command}",
+            service.Name, deployCommand);
+
+        var sw = Stopwatch.StartNew();
 
         try
         {
-            var downResult = await ExecuteDockerCommand(
-                $"docker compose -f {job.ComposeFile} down --rmi all",
-                job.WorkingDirectory,
-                job.EnvironmentVariables,
-                environment
-            );
+            // 3. Execute docker command locally on this host
+            var result = await ExecuteLocalCommandAsync(deployCommand, service.WorkingDirectory);
+            sw.Stop();
 
-            var upResult = await ExecuteDockerCommand(
-                $"docker compose  -f {job.ComposeFile} up -d",
-                job.WorkingDirectory,
-                job.EnvironmentVariables,
-                environment
-            );
+            logger.LogInformation("[DEPLOY] Deploy {Status} for '{Service}' in {Duration}ms",
+                result.Success ? "SUCCESS" : "FAILED", service.Name, sw.ElapsedMilliseconds);
 
-            if (!upResult.Success)
+            return new DeployResultDto
             {
-                return upResult;
-            }
-
-            return new DeployResponse
-            {
-                Success = true,
-                Message = "Deployment completed successfully",
-                Output = $"Down output:{downResult.Output} Up output:{upResult.Output}"
+                ServiceName = service.Name,
+                Success = result.Success,
+                Output = result.Output,
+                Error = result.Error,
+                DurationMs = sw.ElapsedMilliseconds
             };
         }
         catch (Exception ex)
         {
-            return new DeployResponse
+            sw.Stop();
+            logger.LogError(ex, "[DEPLOY] Deploy exception for '{Service}'", service.Name);
+
+            return new DeployResultDto
             {
+                ServiceName = service.Name,
                 Success = false,
-                Message = "Deployment failed",
-                Error = ex.Message
+                Error = ex.Message,
+                DurationMs = sw.ElapsedMilliseconds
             };
         }
     }
 
-    public List<string> GetAvailableJobs()
+    private static string? BuildDeployCommand(MonitoredService service)
     {
-        return _settings.Jobs.Select(j => j.Name).ToList();
+        if (!string.IsNullOrWhiteSpace(service.DeployCommand))
+            return service.DeployCommand;
+
+        if (!string.IsNullOrWhiteSpace(service.ComposeFilePath))
+        {
+            var f = service.ComposeFilePath;
+            return $"docker compose -f {f} down --rmi all && docker compose -f {f} up -d";
+        }
+
+        if (!string.IsNullOrWhiteSpace(service.ContainerName) && !string.IsNullOrWhiteSpace(service.ImageName))
+        {
+            var port = service.Port.HasValue ? $"-p {service.Port}:{service.Port} " : "";
+            return $"docker stop {service.ContainerName} 2>/dev/null; " +
+                   $"docker rm {service.ContainerName} 2>/dev/null; " +
+                   $"docker pull {service.ImageName} && " +
+                   $"docker run -d --name {service.ContainerName} {port}{service.ImageName}";
+        }
+
+        return null;
     }
 
-    private static async Task<DeployResponse> ExecuteDockerCommand(
-        string command,
-        string workingDirectory,
-        Dictionary<string, string>? envVars,
-        string? environment)
+    private static async Task<CommandResult> ExecuteLocalCommandAsync(string command, string? workingDirectory)
     {
         var startInfo = new ProcessStartInfo
         {
             FileName = "/bin/bash",
-            Arguments = $"-c \"{command}\"",
-            WorkingDirectory = workingDirectory,
+            Arguments = $"-c \"{command.Replace("\"", "\\\"")}\"",
+            WorkingDirectory = workingDirectory ?? "/",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true
         };
 
-        if (envVars != null)
-        {
-            foreach (var kvp in envVars)
-            {
-                startInfo.EnvironmentVariables[kvp.Key] = kvp.Value;
-            }
-        }
-
-        if (!string.IsNullOrEmpty(environment))
-        {
-            startInfo.EnvironmentVariables["DEPLOY_ENV"] = environment;
-        }
-
         using var process = new Process { StartInfo = startInfo };
 
-        var outputBuilder = new System.Text.StringBuilder();
-        var errorBuilder = new System.Text.StringBuilder();
+        var outputBuilder = new StringBuilder();
+        var errorBuilder = new StringBuilder();
 
-        process.OutputDataReceived += (sender, e) =>
-        {
-            if (e.Data != null)
-            {
-                outputBuilder.AppendLine(e.Data);
-            }
-        };
-
-        process.ErrorDataReceived += (sender, e) =>
-        {
-            if (e.Data != null)
-            {
-                errorBuilder.AppendLine(e.Data);
-            }
-        };
+        process.OutputDataReceived += (_, e) => { if (e.Data != null) outputBuilder.AppendLine(e.Data); };
+        process.ErrorDataReceived += (_, e) => { if (e.Data != null) errorBuilder.AppendLine(e.Data); };
 
         process.Start();
         process.BeginOutputReadLine();
@@ -130,16 +128,18 @@ public class DeployService(IOptions<DeploySettings> settings) : IDeployService
 
         await process.WaitForExitAsync();
 
-        var success = process.ExitCode == 0;
-        var output = outputBuilder.ToString();
-        var error = errorBuilder.ToString();
-
-        return new DeployResponse
+        return new CommandResult
         {
-            Success = success,
-            Message = success ? "Command executed successfully" : "Command failed",
-            Output = output,
-            Error = string.IsNullOrEmpty(error) ? null : error
+            Success = process.ExitCode == 0,
+            Output = outputBuilder.ToString(),
+            Error = string.IsNullOrEmpty(errorBuilder.ToString()) ? null : errorBuilder.ToString()
         };
+    }
+
+    private sealed class CommandResult
+    {
+        public bool Success { get; set; }
+        public string? Output { get; set; }
+        public string? Error { get; set; }
     }
 }

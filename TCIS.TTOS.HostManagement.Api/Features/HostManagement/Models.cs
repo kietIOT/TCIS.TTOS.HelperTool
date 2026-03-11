@@ -11,6 +11,7 @@ public sealed class CreateHostRequest
     public string Name { get; set; } = default!;
     public string? Description { get; set; }
     public string IpAddress { get; set; } = default!;
+    public int AgentPort { get; set; } = 5155;
     public int? SshPort { get; set; } = 22;
     public string? SshUsername { get; set; }
     public string? SshPrivateKeyPath { get; set; }
@@ -23,6 +24,7 @@ public sealed class UpdateHostRequest
     public string? Name { get; set; }
     public string? Description { get; set; }
     public string? IpAddress { get; set; }
+    public int? AgentPort { get; set; }
     public int? SshPort { get; set; }
     public string? SshUsername { get; set; }
     public string? SshPrivateKeyPath { get; set; }
@@ -37,6 +39,7 @@ public class HostDto
     public string Name { get; set; } = default!;
     public string? Description { get; set; }
     public string IpAddress { get; set; } = default!;
+    public int AgentPort { get; set; }
     public int? SshPort { get; set; }
     public string? SshUsername { get; set; }
     public string? Os { get; set; }

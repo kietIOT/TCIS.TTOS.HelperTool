@@ -1,6 +1,5 @@
 using TCIS.TTOS.HostManagement.API.Features.HostManagement;
 using Microsoft.EntityFrameworkCore;
-using TCIS.TTOS.HostManagement.API.Features.HostManagement;
 using TCIS.TTOS.ToolHelper.DAL;
 using TCIS.TTOS.ToolHelper.DAL.UnitOfWork;
 
@@ -18,6 +17,7 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddHostManagementFeature(this IServiceCollection services)
     {
+        services.AddHttpClient();
         services.AddScoped<IHostService, HostService>();
         services.AddScoped<IMonitoredServiceService, MonitoredServiceService>();
         services.AddScoped<IServiceDeploymentService, ServiceDeploymentService>();

@@ -1,5 +1,6 @@
 using System.Diagnostics;
-using System.Diagnostics;
+using System.Net.Http.Json;
+using System.Text.Json;
 using TCIS.TTOS.HostManagement.API.Common.Models;
 using TCIS.TTOS.ToolHelper.Dal.Entities;
 using TCIS.TTOS.ToolHelper.Dal.Enums;
@@ -9,8 +10,11 @@ namespace TCIS.TTOS.HostManagement.API.Features.HostManagement;
 
 public class ServiceDeploymentService(
     IServiceScopeFactory scopeFactory,
+    IHttpClientFactory httpClientFactory,
     ILogger<ServiceDeploymentService> logger) : IServiceDeploymentService
 {
+    private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
+
     public async Task<BaseResponse<DeploymentResultDto>> DeployByServiceNameAsync(DeployByNameRequest request, CancellationToken ct = default)
     {
         using var scope = scopeFactory.CreateScope();
@@ -62,48 +66,28 @@ public class ServiceDeploymentService(
         await uow.DeploymentHistoryRepository.AddAsync(history);
         await uow.CompleteAsync();
 
-        logger.LogInformation("[DEPLOY] Starting deployment for service '{Service}' on host '{Host}' ({Ip})",
-            service.Name, host.Name, host.IpAddress);
+        logger.LogInformation("[DEPLOY] Starting deployment for service '{Service}' on host '{Host}' ({Ip}:{Port})",
+            service.Name, host.Name, host.IpAddress, host.AgentPort);
 
         var sw = Stopwatch.StartNew();
 
         try
         {
-            // 4. Build and execute the deployment command
-            var deployCommand = BuildDeployCommand(service);
-            if (string.IsNullOrWhiteSpace(deployCommand))
-            {
-                history.Status = DeploymentStatus.Failed;
-                history.ErrorMessage = "No deploy command configured for this service. Set ComposeFilePath or DeployCommand.";
-                history.FinishedAt = DateTimeOffset.UtcNow;
-                history.DurationMs = sw.ElapsedMilliseconds;
-
-                await uow.DeploymentHistoryRepository.UpdateAsync(history);
-                await uow.CompleteAsync();
-
-                return new BaseResponse<DeploymentResultDto>
-                {
-                    IsSuccess = false,
-                    Data = MapToResultDto(history, service, host),
-                    Message = history.ErrorMessage
-                };
-            }
-
-            // 5. Execute command (locally or via SSH depending on host)
-            var result = await ExecuteDeployCommandAsync(host, deployCommand, service.WorkingDirectory);
+            // 4. Call HelperTool.API on the target host via HTTP
+            var agentResult = await CallHelperToolAgentAsync(host, request, ct);
 
             sw.Stop();
 
-            // 6. Update history
-            history.Output = result.Output;
-            history.ErrorMessage = result.Error;
-            history.Status = result.Success ? DeploymentStatus.Success : DeploymentStatus.Failed;
+            // 5. Update history
+            history.Output = agentResult.Output;
+            history.ErrorMessage = agentResult.Error;
+            history.Status = agentResult.Success ? DeploymentStatus.Success : DeploymentStatus.Failed;
             history.FinishedAt = DateTimeOffset.UtcNow;
-            history.DurationMs = sw.ElapsedMilliseconds;
+            history.DurationMs = agentResult.DurationMs > 0 ? agentResult.DurationMs : sw.ElapsedMilliseconds;
 
             await uow.DeploymentHistoryRepository.UpdateAsync(history);
 
-            // 7. Update service deployment status
+            // 6. Update service deployment status
             service.LastDeploymentStatus = history.Status;
             service.LastDeployedAt = DateTimeOffset.UtcNow;
             if (request.Version != null) service.Version = request.Version;
@@ -117,39 +101,30 @@ public class ServiceDeploymentService(
 
             return new BaseResponse<DeploymentResultDto>
             {
-                IsSuccess = result.Success,
+                IsSuccess = agentResult.Success,
                 Data = MapToResultDto(history, service, host),
-                Message = result.Success
+                Message = agentResult.Success
                     ? $"Service '{service.Name}' deployed successfully on host '{host.Name}'"
                     : $"Deployment failed for service '{service.Name}'"
             };
         }
+        catch (HttpRequestException ex)
+        {
+            sw.Stop();
+            return await HandleDeployFailureAsync(uow, history, service, host, sw,
+                $"Cannot connect to HelperTool agent at {host.IpAddress}:{host.AgentPort} — {ex.Message}", ex);
+        }
+        catch (TaskCanceledException ex)
+        {
+            sw.Stop();
+            return await HandleDeployFailureAsync(uow, history, service, host, sw,
+                $"Request to HelperTool agent timed out — {ex.Message}", ex);
+        }
         catch (Exception ex)
         {
             sw.Stop();
-
-            history.Status = DeploymentStatus.Failed;
-            history.ErrorMessage = ex.Message;
-            history.FinishedAt = DateTimeOffset.UtcNow;
-            history.DurationMs = sw.ElapsedMilliseconds;
-
-            await uow.DeploymentHistoryRepository.UpdateAsync(history);
-
-            service.LastDeploymentStatus = DeploymentStatus.Failed;
-            service.UpdatedAt = DateTimeOffset.UtcNow;
-            await uow.MonitoredServiceRepository.UpdateAsync(service);
-
-            await uow.CompleteAsync();
-
-            logger.LogError(ex, "[DEPLOY] Deployment failed for service '{Service}' on host '{Host}'",
-                service.Name, host.Name);
-
-            return new BaseResponse<DeploymentResultDto>
-            {
-                IsSuccess = false,
-                Data = MapToResultDto(history, service, host),
-                Message = $"Deployment exception: {ex.Message}"
-            };
+            return await HandleDeployFailureAsync(uow, history, service, host, sw,
+                $"Deployment exception: {ex.Message}", ex);
         }
     }
 
@@ -211,107 +186,71 @@ public class ServiceDeploymentService(
         };
     }
 
-    // ?????????????????????????????? PRIVATE ??????????????????????????????
+    // ?????????? PRIVATE ??????????
 
-    private static string? BuildDeployCommand(MonitoredService service)
+    /// <summary>
+    /// Calls POST http://{host.IpAddress}:{host.AgentPort}/api/deploy on the target HelperTool agent.
+    /// </summary>
+    private async Task<AgentDeployResult> CallHelperToolAgentAsync(MonitoredHost host, DeployByNameRequest request, CancellationToken ct)
     {
-        // If custom deploy command is set, use it directly
-        if (!string.IsNullOrWhiteSpace(service.DeployCommand))
-            return service.DeployCommand;
+        var client = httpClientFactory.CreateClient();
+        client.Timeout = TimeSpan.FromMinutes(10);
 
-        // If compose file is configured, build docker compose command
-        if (!string.IsNullOrWhiteSpace(service.ComposeFilePath))
+        var agentUrl = $"http://{host.IpAddress}:{host.AgentPort}/api/deploy";
+
+        var payload = new
         {
-            var composeFile = service.ComposeFilePath;
-            return $"docker compose -f {composeFile} down --rmi all && docker compose -f {composeFile} up -d";
-        }
-
-        // If container name + image are configured, use docker run
-        if (!string.IsNullOrWhiteSpace(service.ContainerName) && !string.IsNullOrWhiteSpace(service.ImageName))
-        {
-            var port = service.Port.HasValue ? $"-p {service.Port}:{service.Port} " : "";
-            return $"docker stop {service.ContainerName} 2>/dev/null; docker rm {service.ContainerName} 2>/dev/null; docker pull {service.ImageName} && docker run -d --name {service.ContainerName} {port}{service.ImageName}";
-        }
-
-        return null;
-    }
-
-    private static async Task<CommandResult> ExecuteDeployCommandAsync(MonitoredHost host, string command, string? workingDirectory)
-    {
-        // Determine if this is a local or remote deployment
-        var isLocal = IsLocalHost(host.IpAddress);
-
-        if (isLocal)
-        {
-            return await ExecuteLocalCommandAsync(command, workingDirectory);
-        }
-
-        // Remote: wrap with SSH
-        return await ExecuteSshCommandAsync(host, command);
-    }
-
-    private static bool IsLocalHost(string ip)
-    {
-        return ip is "127.0.0.1" or "localhost" or "0.0.0.0" or "::1";
-    }
-
-    private static async Task<CommandResult> ExecuteLocalCommandAsync(string command, string? workingDirectory)
-    {
-        var startInfo = new ProcessStartInfo
-        {
-            FileName = "/bin/bash",
-            Arguments = $"-c \"{command.Replace("\"", "\\\"")}\"",
-            WorkingDirectory = workingDirectory ?? "/",
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
+            serviceName = request.ServiceName,
+            version = request.Version,
+            triggeredBy = request.TriggeredBy
         };
 
-        using var process = new Process { StartInfo = startInfo };
+        logger.LogInformation("[DEPLOY] Calling agent at {Url} for service '{Service}'", agentUrl, request.ServiceName);
 
-        var outputBuilder = new System.Text.StringBuilder();
-        var errorBuilder = new System.Text.StringBuilder();
+        var response = await client.PostAsJsonAsync(agentUrl, payload, ct);
+        var body = await response.Content.ReadAsStringAsync(ct);
 
-        process.OutputDataReceived += (_, e) => { if (e.Data != null) outputBuilder.AppendLine(e.Data); };
-        process.ErrorDataReceived += (_, e) => { if (e.Data != null) errorBuilder.AppendLine(e.Data); };
-
-        process.Start();
-        process.BeginOutputReadLine();
-        process.BeginErrorReadLine();
-
-        await process.WaitForExitAsync();
-
-        return new CommandResult
+        if (response.IsSuccessStatusCode)
         {
-            Success = process.ExitCode == 0,
-            Output = outputBuilder.ToString(),
-            Error = string.IsNullOrEmpty(errorBuilder.ToString()) ? null : errorBuilder.ToString()
+            var result = JsonSerializer.Deserialize<AgentDeployResult>(body, JsonOptions);
+            return result ?? new AgentDeployResult { Success = false, Error = "Empty response from agent" };
+        }
+
+        // Agent returned error
+        var errorResult = JsonSerializer.Deserialize<AgentDeployResult>(body, JsonOptions);
+        return errorResult ?? new AgentDeployResult
+        {
+            Success = false,
+            Error = $"Agent returned {response.StatusCode}: {body}"
         };
     }
 
-    private static async Task<CommandResult> ExecuteSshCommandAsync(MonitoredHost host, string command)
+    private async Task<BaseResponse<DeploymentResultDto>> HandleDeployFailureAsync(
+        IToolHelperUnitOfWork uow, DeploymentHistory history, MonitoredService service,
+        MonitoredHost host, Stopwatch sw, string errorMessage, Exception ex)
     {
-        var sshPort = host.SshPort ?? 22;
-        var sshUser = host.SshUsername ?? "root";
+        history.Status = DeploymentStatus.Failed;
+        history.ErrorMessage = errorMessage;
+        history.FinishedAt = DateTimeOffset.UtcNow;
+        history.DurationMs = sw.ElapsedMilliseconds;
 
-        // Build SSH command
-        string sshCommand;
-        if (!string.IsNullOrWhiteSpace(host.SshPrivateKeyPath))
-        {
-            sshCommand = $"ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -i {host.SshPrivateKeyPath} -p {sshPort} {sshUser}@{host.IpAddress} '{command.Replace("'", "'\\''")}'";
-        }
-        else if (!string.IsNullOrWhiteSpace(host.SshPassword))
-        {
-            sshCommand = $"sshpass -p '{host.SshPassword.Replace("'", "'\\''")}' ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -p {sshPort} {sshUser}@{host.IpAddress} '{command.Replace("'", "'\\''")}'";
-        }
-        else
-        {
-            // Fallback: assume SSH key is already configured in agent
-            sshCommand = $"ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -p {sshPort} {sshUser}@{host.IpAddress} '{command.Replace("'", "'\\''")}'";
-        }
+        await uow.DeploymentHistoryRepository.UpdateAsync(history);
 
-        return await ExecuteLocalCommandAsync(sshCommand, null);
+        service.LastDeploymentStatus = DeploymentStatus.Failed;
+        service.UpdatedAt = DateTimeOffset.UtcNow;
+        await uow.MonitoredServiceRepository.UpdateAsync(service);
+
+        await uow.CompleteAsync();
+
+        logger.LogError(ex, "[DEPLOY] Deployment failed for service '{Service}' on host '{Host}'",
+            service.Name, host.Name);
+
+        return new BaseResponse<DeploymentResultDto>
+        {
+            IsSuccess = false,
+            Data = MapToResultDto(history, service, host),
+            Message = errorMessage
+        };
     }
 
     private static DeploymentResultDto MapToResultDto(DeploymentHistory history, MonitoredService service, MonitoredHost host) => new()
@@ -345,10 +284,15 @@ public class ServiceDeploymentService(
         DurationMs = history.DurationMs
     };
 
-    private sealed class CommandResult
+    /// <summary>
+    /// Maps the JSON response from HelperTool.API POST /api/deploy
+    /// </summary>
+    private sealed class AgentDeployResult
     {
+        public string ServiceName { get; set; } = default!;
         public bool Success { get; set; }
         public string? Output { get; set; }
         public string? Error { get; set; }
+        public long DurationMs { get; set; }
     }
 }

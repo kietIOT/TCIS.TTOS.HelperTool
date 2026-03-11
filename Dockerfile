@@ -3,13 +3,15 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
 # Copy csproj để cache restore
-COPY ./TCIS.TTOS.ToolHelper.Common/TCIS.TTOS.ToolHelper.Common.csproj ./TCIS.TTOS.ToolHelper.Common/
+COPY TCIS.TTOS.ToolHelper.Common/TCIS.TTOS.ToolHelper.Common.csproj TCIS.TTOS.ToolHelper.Common/
+COPY TCIS.TTOS.ToolHelper.Dal/TCIS.TTOS.ToolHelper.Dal.csproj TCIS.TTOS.ToolHelper.Dal/
 COPY ./TCIS.TTOS.HelperTool.Api/TCIS.TTOS.HelperTool.API.csproj ./TCIS.TTOS.HelperTool.Api/
 
 RUN dotnet restore ./TCIS.TTOS.HelperTool.Api/TCIS.TTOS.HelperTool.API.csproj
 
 # Copy full source
-COPY ./TCIS.TTOS.ToolHelper.Common/ ./TCIS.TTOS.ToolHelper.Common/
+COPY TCIS.TTOS.ToolHelper.Common/ TCIS.TTOS.ToolHelper.Common/
+COPY TCIS.TTOS.ToolHelper.Dal/ TCIS.TTOS.ToolHelper.Dal/
 COPY ./TCIS.TTOS.HelperTool.Api/ ./TCIS.TTOS.HelperTool.Api/
 
 # Publish luôn (khỏi cần build riêng)
