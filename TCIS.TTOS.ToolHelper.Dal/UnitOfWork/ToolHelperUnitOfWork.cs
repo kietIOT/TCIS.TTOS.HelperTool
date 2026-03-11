@@ -14,6 +14,7 @@ namespace TCIS.TTOS.ToolHelper.DAL.UnitOfWork
         IToolHelperRepository<MonitoredHost> MonitoredHostRepository { get; }
         IToolHelperRepository<MonitoredService> MonitoredServiceRepository { get; }
         IToolHelperRepository<DeploymentHistory> DeploymentHistoryRepository { get; }
+        IToolHelperRepository<RedisInstance> RedisInstanceRepository { get; }
     }
 
     public class ToolHelperUnitOfWork(IDbContextFactory<ToolHelperDbContext> dbContextFactory) :
@@ -28,6 +29,7 @@ namespace TCIS.TTOS.ToolHelper.DAL.UnitOfWork
         private IToolHelperRepository<MonitoredHost>? _monitoredHostRepository;
         private IToolHelperRepository<MonitoredService>? _monitoredServiceRepository;
         private IToolHelperRepository<DeploymentHistory>? _deploymentHistoryRepository;
+        private IToolHelperRepository<RedisInstance>? _redisInstanceRepository;
 
         public IToolHelperRepository<TrackingShipment> TrackingShipmentRepository => _trackingShipmentRepository ??= new ToolHelperRepository<TrackingShipment>(_dbContext);
         public IToolHelperRepository<NotificationOutbox> NotificationOutboxRepository => _notificationOutboxRepository ??= new ToolHelperRepository<NotificationOutbox>(_dbContext);
@@ -43,6 +45,8 @@ namespace TCIS.TTOS.ToolHelper.DAL.UnitOfWork
                 => _monitoredServiceRepository ??= new ToolHelperRepository<MonitoredService>(_dbContext);
         public IToolHelperRepository<DeploymentHistory> DeploymentHistoryRepository
                 => _deploymentHistoryRepository ??= new ToolHelperRepository<DeploymentHistory>(_dbContext);
+        public IToolHelperRepository<RedisInstance> RedisInstanceRepository
+                => _redisInstanceRepository ??= new ToolHelperRepository<RedisInstance>(_dbContext);
 
     }
 }

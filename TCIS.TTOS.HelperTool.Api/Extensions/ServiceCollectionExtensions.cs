@@ -4,6 +4,7 @@ using TCIS.TTOS.HelperTool.API.Features.Deploy;
 using TCIS.TTOS.HelperTool.API.Features.DockerMonitor;
 using TCIS.TTOS.HelperTool.API.Features.SpxExpress;
 using TCIS.TTOS.HelperTool.API.Features.SpxTracking;
+using TCIS.TTOS.HelperTool.API.Features.RedisManagement;
 using TCIS.TTOS.HelperTool.API.Features.YooseeCamera;
 using TCIS.TTOS.ToolHelper.DAL;
 using TCIS.TTOS.ToolHelper.DAL.UnitOfWork;
@@ -55,6 +56,12 @@ public static class ServiceCollectionExtensions
         services.AddDbContextFactory<ToolHelperDbContext>(options =>
             options.UseNpgsql(configuration.GetConnectionString("ToolHelperDb")));
         services.AddScoped<IToolHelperUnitOfWork, ToolHelperUnitOfWork>();
+        return services;
+    }
+
+    public static IServiceCollection AddRedisFeature(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddSingleton<IRedisService, RedisService>();
         return services;
     }
 }

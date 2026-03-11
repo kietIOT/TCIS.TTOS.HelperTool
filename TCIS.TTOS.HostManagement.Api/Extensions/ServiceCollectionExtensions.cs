@@ -1,4 +1,6 @@
 using TCIS.TTOS.HostManagement.API.Features.HostManagement;
+using TCIS.TTOS.HostManagement.API.Features.HostManagement;
+using TCIS.TTOS.HostManagement.API.Features.RedisManagement;
 using Microsoft.EntityFrameworkCore;
 using TCIS.TTOS.ToolHelper.DAL;
 using TCIS.TTOS.ToolHelper.DAL.UnitOfWork;
@@ -21,6 +23,12 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IHostService, HostService>();
         services.AddScoped<IMonitoredServiceService, MonitoredServiceService>();
         services.AddScoped<IServiceDeploymentService, ServiceDeploymentService>();
+        return services;
+    }
+
+    public static IServiceCollection AddRedisManagementFeature(this IServiceCollection services)
+    {
+        services.AddScoped<IRedisProxyService, RedisProxyService>();
         return services;
     }
 }

@@ -26,6 +26,7 @@ builder.Services.AddHttpContextAccessor();
 // Feature registrations
 builder.Services.AddPersistence(builder.Configuration);
 builder.Services.AddHostManagementFeature();
+builder.Services.AddRedisManagementFeature();
 
 var app = builder.Build();
 

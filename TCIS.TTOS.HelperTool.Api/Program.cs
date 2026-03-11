@@ -31,6 +31,7 @@ builder.Services.AddSpxExpressFeature(builder.Configuration);
 builder.Services.AddSpxTrackingFeature(builder.Configuration);
 builder.Services.AddDockerMonitorFeature(builder.Configuration);
 builder.Services.AddYooseeCameraFeature(builder.Configuration);
+builder.Services.AddRedisFeature(builder.Configuration);
 
 var app = builder.Build();
 

@@ -15,6 +15,7 @@ namespace TCIS.TTOS.ToolHelper.DAL
         public DbSet<MonitoredHost> MonitoredHosts { get; } = null!;
         public DbSet<MonitoredService> MonitoredServices { get; } = null!;
         public DbSet<DeploymentHistory> DeploymentHistories { get; } = null!;
+        public DbSet<RedisInstance> RedisInstances { get; } = null!;
 
         protected override void OnModelCreating(ModelBuilder b)
         {
@@ -130,6 +131,11 @@ namespace TCIS.TTOS.ToolHelper.DAL
                  .WithOne(x => x.Host)
                  .HasForeignKey(x => x.HostId)
                  .OnDelete(DeleteBehavior.Cascade);
+
+                e.HasMany(x => x.RedisInstances)
+                 .WithOne(x => x.MonitoredHost)
+                 .HasForeignKey(x => x.HostId)
+                 .OnDelete(DeleteBehavior.Cascade);
             });
 
             // ---- monitored_services
@@ -168,6 +174,20 @@ namespace TCIS.TTOS.ToolHelper.DAL
 
                 e.HasIndex(x => x.Status)
                   .HasDatabaseName("ix_deployment_histories_status");
+            });
+
+            // ---- redis_instances
+            b.Entity<RedisInstance>(e =>
+            {
+                e.ToTable("redis_instances");
+                e.HasKey(x => x.Id);
+
+                e.HasIndex(x => new { x.HostId, x.Name })
+                  .IsUnique()
+                  .HasDatabaseName("ix_redis_instances_host_name");
+
+                e.HasIndex(x => new { x.HostId, x.IsActive })
+                  .HasDatabaseName("ix_redis_instances_host_active");
             });
         }
     }

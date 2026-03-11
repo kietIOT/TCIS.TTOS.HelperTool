@@ -43,6 +43,7 @@ namespace TCIS.TTOS.ToolHelper.Dal.Entities
 
         // Nav
         public ICollection<MonitoredService> Services { get; set; } = new List<MonitoredService>();
+        public ICollection<RedisInstance> RedisInstances { get; set; } = new List<RedisInstance>();
     }
 }
 
